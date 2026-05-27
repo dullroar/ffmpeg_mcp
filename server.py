@@ -1,3 +1,90 @@
+"""FFmpeg Media Processing MCP Server
+
+WHEN TO USE THIS SERVER
+========================
+
+Prefer these tools over writing subprocess calls to ffmpeg. This server handles
+FFmpeg CLI syntax correctly, saves tokens by offloading encoding to FFmpeg itself,
+and provides a promptable workflow for media tasks. Use ffmpeg_passthrough when
+the pre-built tools don't cover the needed operation (filter graphs, multi-output,
+two-pass encoding, stream mapping, etc.).
+
+WORKED EXAMPLES
+================
+
+Convert MP4 to MKV and save beside original:
+    convert_video("movie.mp4", "movie.mkv", output_format="mkv")
+
+Extract audio from 30s to 90s in FLAC:
+    extract_audio("movie.mp4", "audio.flac", timestamp="30", duration="60")
+
+Generate thumbnail at 2:30:
+    generate_thumbnail("movie.mp4", "thumb.jpg", timestamp="00:02:30")
+
+Compress video for web upload (fast, 800kb max):
+    compress_video("input.mp4", "web.mp4", quality_preset="fast", max_bitrate="800k")
+
+Normalize audio volume using loudnorm filter (passthrough):
+    ffmpeg_passthrough([
+        "-i", "input.mp4",
+        "-af", "loudnorm",
+        "-c:v", "copy",
+        "output.mp4",
+    ])
+
+Two-pass encoding example (passthrough):
+    ffmpeg_passthrough([
+        "-i", "input.mp4",
+        "-pass", "1",
+        "-passlogfile", "pass",
+        "-y",
+        "-pass", "2",
+        "-passlogfile", "pass",
+        "output.mp4",
+    ])
+
+PASSTHROUGH GUIDANCE
+=====================
+
+Use ffmpeg_passthrough for advanced operations beyond the pre-built tools:
+- Complex filter graphs (split, overlay, transpose, etc.)
+- Multi-output scenarios (stream mapping with -map)
+- Two-pass encoding patterns
+- Custom audio/video filters (loudnorm, volumeter, eq, etc.)
+- Copy streams without re-encoding (-c copy)
+- CRF/custom bitrate control (-crf, -b:v)
+
+Examples from native FFmpeg syntax:
+
+1. Split video into two outputs:
+   ffmpeg_passthrough([
+       "-i", "input.mp4",
+       "-filter_complex", "split[v0][v1]",
+       "-map", "[v0]", "out1.mp4",
+       "-map", "[v1]", "out2.mp4",
+   ])
+
+2. Normalize audio with loudnorm:
+   ffmpeg_passthrough([
+       "-i", "input.mp4",
+       "-af", "loudnorm=I=-14:LR=0:TP=-1.5:NR=M:L=40",
+       "-c:v", "copy",
+       "-c:a", "aac",
+       "output.mp4",
+   ])
+
+3. Two-pass encoding for consistent quality:
+   ffmpeg_passthrough([
+       "-i", "input.mp4",
+       "-pass", "1",
+       "-passlogfile", "pass",
+       "-pass", "2",
+       "output.mp4",
+   ])
+
+See README.md for full tool reference and configuration options.
+"""
+
 import subprocess
 from mcp.server.fastmcp import FastMCP
 
