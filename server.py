@@ -9,17 +9,41 @@ and provides a promptable workflow for media tasks. Use ffmpeg_passthrough when
 the pre-built tools don't cover the needed operation (filter graphs, multi-output,
 two-pass encoding, stream mapping, etc.).
 
+BULK OPERATIONS (pass a glob, skip the loop)
+=============================================
+
+All file-input tools accept a glob pattern for the input argument. Supply a
+directory path (trailing slash, e.g. "out/") as the output — the tool expands
+the glob internally and processes every match in one call. This is almost always
+the right choice for batch work: one tool call beats N sequential calls.
+
+    convert_video("raw/*.mp4", "encoded/", output_format="mkv")
+    convert_audio("sessions/*.flac", "mp3/", output_format="mp3", bitrate="320k")
+    extract_audio("lectures/*.mp4", "audio/", output_format="mp3")
+    compress_video("originals/*.mp4", "web/", quality_preset="fast", max_bitrate="1500k")
+    generate_thumbnail("episodes/*.mp4", "thumbs/")
+    probe("media/*.mkv")   # returns info for every matched file
+
 WORKED EXAMPLES
 ================
 
 Convert MP4 to MKV and save beside original:
     convert_video("movie.mp4", "movie.mkv", output_format="mkv")
 
+Convert all MP4s in a folder to MKV (one call, no loop):
+    convert_video("raw/*.mp4", "encoded/", output_format="mkv")
+
 Extract audio from 30s to 90s in FLAC:
     extract_audio("movie.mp4", "audio.flac", timestamp="30", duration="60")
 
+Extract audio from every video in a folder (one call, no loop):
+    extract_audio("lectures/*.mp4", "audio/", output_format="mp3")
+
 Generate thumbnail at 2:30:
     generate_thumbnail("movie.mp4", "thumb.jpg", timestamp="00:02:30")
+
+Generate thumbnails for all videos in a folder (one call, no loop):
+    generate_thumbnail("episodes/*.mp4", "thumbs/")
 
 Compress video for web upload (fast, 800kb max):
     compress_video("input.mp4", "web.mp4", quality_preset="fast", max_bitrate="800k")
@@ -85,33 +109,31 @@ Examples from native FFmpeg syntax:
 See README.md for full tool reference and configuration options.
 """
 
+import glob as _glob
 import subprocess
+from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("FFmpeg Media Processing Server")
 
-# Check if ffmpeg is available
 FFMPEG_PATH = None
 
+
 def _get_ffmpeg_path():
-    """Get the path to ffmpeg if available, None otherwise."""
     global FFMPEG_PATH
     if FFMPEG_PATH is None:
         try:
-            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
+            subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
             FFMPEG_PATH = "ffmpeg"
-        except FileNotFoundError:
-            FFMPEG_PATH = None
-        except subprocess.TimeoutExpired:
+        except (FileNotFoundError, subprocess.TimeoutExpired):
             FFMPEG_PATH = None
     return FFMPEG_PATH
 
 
 def _call_ffmpeg(args: list[str], timeout: int = 300) -> str:
-    """Execute ffmpeg command and return output."""
     if _get_ffmpeg_path() is None:
         return "Error: ffmpeg is not installed or not in PATH. Please install ffmpeg: https://ffmpeg.org/download.html"
-    
     try:
         result = subprocess.run(
             ["ffmpeg", "-y"] + args,
@@ -126,6 +148,20 @@ def _call_ffmpeg(args: list[str], timeout: int = 300) -> str:
         return f"Error: {e}"
 
 
+def _expand(pattern: str) -> list[str]:
+    """Expand a glob pattern; return [pattern] if no wildcards."""
+    if any(c in pattern for c in ("*", "?", "[")):
+        return sorted(_glob.glob(pattern, recursive=True))
+    return [pattern]
+
+
+def _bulk_out(src: str, output_dir: str, ext: str) -> str:
+    """Derive per-file output path for bulk operations."""
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    return str(out / f"{Path(src).stem}.{ext}")
+
+
 @mcp.tool()
 def convert_video(
     input: str,
@@ -135,23 +171,20 @@ def convert_video(
 ) -> str:
     """Convert video from one format to another.
 
+    Accepts a glob pattern for `input` to process multiple files in one call.
+    When using a glob, set `output` to a directory path (e.g. "encoded/") and the
+    tool places each converted file there — no loop needed.
+
     Parameters
     ----------
     input : str
-        Path to the input video file.
+        Path to the input video file, or a glob pattern (e.g. "raw/*.mp4").
     output : str
-        Path to write the output file.
+        Path to write the output file, or a directory path when input is a glob.
     output_format : str, default "mp4"
         Output format: mp4, mkv, avi, mov, webm, flv, wmv, m4v, 3gp, etc.
     quality_preset : str, optional
-        Video quality/bitrate preset. Options:
-        - "fast" - fast encoding, lower quality (h.264 fast)
-        - "medium" - medium quality
-        - "slow" - slower encoding, better quality
-        - "veryfast" - very fast, lower quality
-        - "superfast" - super fast, lowest quality
-        - "ultrafast" - ultra fast, lowest quality
-        - or omit for default quality
+        Video quality/bitrate preset: fast, medium, slow, veryfast, superfast, ultrafast.
 
     Returns
     -------
@@ -163,27 +196,31 @@ def convert_video(
     Convert MP4 to MKV:
         convert_video("input.mp4", "output.mkv", output_format="mkv")
 
-    Convert with faster encoding:
-        convert_video("input.mp4", "output.mp4", output_format="mp4", quality_preset="fast")
+    Convert all MP4s in a folder to MKV (one call, no loop):
+        convert_video("raw/*.mp4", "encoded/", output_format="mkv")
     """
-    args = ["-i", input, "-c:v", "libx264", "-c:a", "aac"]
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            out = _bulk_out(f, output, output_format)
+            results.append(f"[{Path(f).name}] → {Path(out).name}\n" + _convert_video_one(f, out, output_format, quality_preset))
+        return "\n\n".join(results)
+    return _convert_video_one(input, output, output_format, quality_preset)
 
+
+def _convert_video_one(input: str, output: str, output_format: str, quality_preset: str | None) -> str:
+    args = ["-i", input, "-c:v", "libx264", "-c:a", "aac"]
     if quality_preset:
         preset_map = {
-            "fast": "veryfast",
-            "medium": "medium",
-            "slow": "slow",
-            "veryfast": "veryfast",
-            "superfast": "superfast",
-            "ultrafast": "ultrafast",
+            "fast": "veryfast", "medium": "medium", "slow": "slow",
+            "veryfast": "veryfast", "superfast": "superfast", "ultrafast": "ultrafast",
         }
         preset = preset_map.get(quality_preset.lower(), quality_preset.lower())
         if preset:
             args.extend(["-preset", preset])
-
     if not output.lower().endswith(output_format.lower()):
         output = output.rsplit(".", 1)[0] + f".{output_format}"
-
     args.append(output)
     return _call_ffmpeg(args)
 
@@ -197,18 +234,20 @@ def convert_audio(
 ) -> str:
     """Convert audio from one format to another (e.g., FLAC to MP3, WAV to FLAC).
 
+    Accepts a glob pattern for `input` to process multiple files in one call.
+    When using a glob, set `output` to a directory path (e.g. "mp3/").
+
     Parameters
     ----------
     input : str
-        Path to the input audio file.
+        Path to the input audio file, or a glob pattern (e.g. "lossless/*.flac").
     output : str
-        Path to write the output file.
+        Path to write the output file, or a directory path when input is a glob.
     output_format : str, default "mp3"
         Output format: mp3, flac, wav, aac, ogg, opus, m4a, wma, ac3.
     bitrate : str, default "192k"
-        Bitrate for lossy formats (mp3, aac, ogg, opus, m4a, wma).
-        Examples: "192k", "320k", "128k", "64k", "160k".
-        For lossless formats (flac, wav), this is ignored.
+        Bitrate for lossy formats. Examples: "192k", "320k", "128k".
+        Ignored for lossless formats (flac, wav).
 
     Returns
     -------
@@ -220,39 +259,32 @@ def convert_audio(
     Convert FLAC to MP3:
         convert_audio("song.flac", "song.mp3", output_format="mp3", bitrate="320k")
 
-    Convert WAV to FLAC (lossless):
-        convert_audio("recording.wav", "recording.flac", output_format="flac")
+    Convert all FLACs in a folder to MP3 (one call, no loop):
+        convert_audio("lossless/*.flac", "mp3/", output_format="mp3", bitrate="320k")
     """
-    args = [
-        "-i", input,
-    ]
-    
-    # Map output format to encoder
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            out = _bulk_out(f, output, output_format)
+            results.append(f"[{Path(f).name}] → {Path(out).name}\n" + _convert_audio_one(f, out, output_format, bitrate))
+        return "\n\n".join(results)
+    return _convert_audio_one(input, output, output_format, bitrate)
+
+
+def _convert_audio_one(input: str, output: str, output_format: str, bitrate: str | None) -> str:
+    args = ["-i", input]
     encoder_map = {
-        "mp3": "libmp3lame",
-        "m4a": "aac",
-        "aac": "aac",
-        "ogg": "libvorbis",
-        "opus": "libopus",
-        "wma": "wmav2",
-        "ac3": "ac3",
-        "flac": "flac",
-        "wav": "pcm_s16le",
+        "mp3": "libmp3lame", "m4a": "aac", "aac": "aac", "ogg": "libvorbis",
+        "opus": "libopus", "wma": "wmav2", "ac3": "ac3", "flac": "flac", "wav": "pcm_s16le",
     }
-    
     encoder = encoder_map.get(output_format.lower(), "libmp3lame")
     args.extend(["-c:a", encoder])
-    
-    # Set bitrate for lossy formats
     if output_format.lower() in ["mp3", "m4a", "aac", "ogg", "opus", "wma", "ac3"]:
         args.extend(["-b:a", bitrate or "192k"])
-    
-    # Add output extension if not provided
     if not output.lower().endswith(output_format.lower()):
         output = output.rsplit(".", 1)[0] + f".{output_format}"
-    
-    args.extend([output])
-    
+    args.append(output)
     return _call_ffmpeg(args)
 
 
@@ -266,12 +298,16 @@ def extract_audio(
 ) -> str:
     """Extract audio track from a video file.
 
+    Accepts a glob pattern for `input` to process multiple files in one call.
+    When using a glob, set `output` to a directory path (e.g. "audio/").
+    The timestamp/duration parameters apply identically to every matched file.
+
     Parameters
     ----------
     input : str
-        Path to the input video file.
+        Path to the input video file, or a glob pattern (e.g. "lectures/*.mp4").
     output : str
-        Path to write the output audio file.
+        Path to write the output audio file, or a directory path when input is a glob.
     output_format : str, default "mp3"
         Output format: mp3, flac, wav, aac, ogg, opus.
     timestamp : str, optional
@@ -289,37 +325,38 @@ def extract_audio(
     Extract entire audio track:
         extract_audio("movie.mp4", "audio.mp3", output_format="mp3")
 
-    Extract 60 seconds starting at 30 seconds:
-        extract_audio("movie.mp4", "intro.mp3", timestamp="30", duration="60")
+    Extract audio from all videos in a folder (one call, no loop):
+        extract_audio("lectures/*.mp4", "audio/", output_format="mp3")
     """
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            out = _bulk_out(f, output, output_format)
+            results.append(f"[{Path(f).name}] → {Path(out).name}\n" + _extract_audio_one(f, out, output_format, timestamp, duration))
+        return "\n\n".join(results)
+    return _extract_audio_one(input, output, output_format, timestamp, duration)
+
+
+def _extract_audio_one(input: str, output: str, output_format: str, timestamp: str | None, duration: str | None) -> str:
     # Pre-input seek is faster; post-input is accurate — use pre-input here
     args = []
     if timestamp:
         args.extend(["-ss", timestamp])
     args.extend(["-i", input, "-vn"])
-
     encoder_map = {
-        "mp3": "libmp3lame",
-        "flac": "flac",
-        "wav": "pcm_s16le",
-        "aac": "aac",
-        "ogg": "libvorbis",
-        "opus": "libopus",
+        "mp3": "libmp3lame", "flac": "flac", "wav": "pcm_s16le",
+        "aac": "aac", "ogg": "libvorbis", "opus": "libopus",
     }
     encoder = encoder_map.get(output_format.lower(), "libmp3lame")
     args.extend(["-c:a", encoder])
-
     if output_format.lower() in ["mp3", "aac", "ogg", "opus"]:
         args.extend(["-b:a", "192k"])
-
     if duration:
         args.extend(["-t", duration])
-
     if not output.lower().endswith(output_format.lower()):
         output = output.rsplit(".", 1)[0] + f".{output_format}"
-
     args.append(output)
-    
     return _call_ffmpeg(args)
 
 
@@ -331,12 +368,16 @@ def generate_thumbnail(
 ) -> str:
     """Extract a single frame from video as an image at a given timestamp.
 
+    Accepts a glob pattern for `input` to generate thumbnails for multiple videos
+    in one call. When using a glob, set `output` to a directory path (e.g. "thumbs/").
+
     Parameters
     ----------
     input : str
-        Path to the input video file.
+        Path to the input video file, or a glob pattern (e.g. "episodes/*.mp4").
     output : str
-        Path to write the output image file (will be saved as .jpg).
+        Path to write the output image file (saved as .jpg), or a directory path
+        when input is a glob.
     timestamp : str, default "00:00:01"
         Timestamp in HH:MM:SS format to extract the frame.
 
@@ -347,26 +388,33 @@ def generate_thumbnail(
 
     Examples
     --------
-    Extract frame at 1 second:
-        generate_thumbnail("movie.mp4", "thumbnail.jpg", timestamp="00:00:01")
-
     Extract frame at 2:30:
         generate_thumbnail("movie.mp4", "thumbnail.jpg", timestamp="00:02:30")
+
+    Generate thumbnails for all videos in a folder (one call, no loop):
+        generate_thumbnail("episodes/*.mp4", "thumbs/", timestamp="00:00:05")
     """
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            out = _bulk_out(f, output, "jpg")
+            results.append(f"[{Path(f).name}] → {Path(out).name}\n" + _generate_thumbnail_one(f, out, timestamp))
+        return "\n\n".join(results)
+    return _generate_thumbnail_one(input, output, timestamp)
+
+
+def _generate_thumbnail_one(input: str, output: str, timestamp: str) -> str:
     args = [
         "-i", input,
         "-ss", timestamp,
         "-vframes", "1",
-        "-vf", "scale=320:-1",  # 320px width, maintain aspect ratio
-        "-y",  # Overwrite output if exists
+        "-vf", "scale=320:-1",
+        "-y",
     ]
-    
-    # Add output extension if not provided
     if not output.lower().endswith(".jpg"):
         output = output.rsplit(".", 1)[0] + ".jpg"
-    
-    args.extend([output])
-    
+    args.append(output)
     return _call_ffmpeg(args)
 
 
@@ -380,28 +428,22 @@ def compress_video(
 ) -> str:
     """Re-encode video at a lower bitrate/quality for size reduction.
 
+    Accepts a glob pattern for `input` to compress multiple files in one call.
+    When using a glob, set `output` to a directory path (e.g. "compressed/").
+
     Parameters
     ----------
     input : str
-        Path to the input video file.
+        Path to the input video file, or a glob pattern (e.g. "originals/*.mp4").
     output : str
-        Path to write the output file.
+        Path to write the output file, or a directory path when input is a glob.
     output_format : str, default "mp4"
         Output format: mp4, mkv, webm, mov.
     quality_preset : str, default "medium"
         FFmpeg preset controlling speed/quality tradeoff:
-        - "ultrafast" - fastest, lowest quality
-        - "superfast" - very fast, low quality
-        - "veryfast" - fast, low-medium quality
-        - "faster" - moderately fast
-        - "fast" - fast, medium quality
-        - "medium" - balanced (default)
-        - "slow" - slow, better quality
-        - "slower" - slower
-        - "veryslow" - slowest, best quality
+        ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow.
     max_bitrate : str, optional
         Maximum bitrate in kbps (e.g., "1000k" for 1 Mbps).
-        If not provided, uses default bitrate based on resolution.
 
     Returns
     -------
@@ -413,9 +455,20 @@ def compress_video(
     Compress video with medium quality:
         compress_video("input.mp4", "output.mp4")
 
-    Compress with fast encoding and max 800kb bitrate:
-        compress_video("input.mp4", "output.mp4", quality_preset="fast", max_bitrate="800k")
+    Compress all videos in a folder for web (one call, no loop):
+        compress_video("originals/*.mp4", "web/", quality_preset="fast", max_bitrate="1500k")
     """
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            out = _bulk_out(f, output, output_format)
+            results.append(f"[{Path(f).name}] → {Path(out).name}\n" + _compress_video_one(f, out, output_format, quality_preset, max_bitrate))
+        return "\n\n".join(results)
+    return _compress_video_one(input, output, output_format, quality_preset, max_bitrate)
+
+
+def _compress_video_one(input: str, output: str, output_format: str, quality_preset: str, max_bitrate: str | None) -> str:
     args = [
         "-i", input,
         "-c:v", "libx264",
@@ -423,20 +476,12 @@ def compress_video(
         "-crf", "23",  # Constant Rate Factor (18-28, 23 is good balance)
         "-c:a", "aac",
     ]
-    
-    # Add bitrate if provided
     if max_bitrate:
         args.extend(["-b:v", max_bitrate])
-    
-    # Add audio bitrate
     args.extend(["-b:a", "128k"])
-    
-    # Add output extension if not provided
     if not output.lower().endswith(output_format.lower()):
         output = output.rsplit(".", 1)[0] + f".{output_format}"
-    
-    args.extend([output])
-    
+    args.append(output)
     return _call_ffmpeg(args)
 
 
@@ -446,21 +491,36 @@ def probe(
 ) -> str:
     """Inspect a media file and return streams/format info (uses ffprobe).
 
+    Accepts a glob pattern for `input` to probe multiple files in one call.
+
     Parameters
     ----------
     input : str
-        Path to the media file to probe.
+        Path to the media file to probe, or a glob pattern (e.g. "media/*.mkv").
 
     Returns
     -------
     str
-        Formatted information about the media file including format, streams, metadata.
+        Formatted information about the media file(s) including format, streams, metadata.
 
     Examples
     --------
     Probe a video file:
         probe("movie.mp4")
+
+    Probe all MKV files in a folder (one call, no loop):
+        probe("media/*.mkv")
     """
+    files = _expand(input)
+    if len(files) > 1:
+        results = []
+        for f in files:
+            results.append(f"=== {Path(f).name} ===\n" + _probe_one(f))
+        return "\n\n".join(results)
+    return _probe_one(input)
+
+
+def _probe_one(input: str) -> str:
     try:
         result = subprocess.run(
             ["ffprobe", "-v", "quiet", "-show_format", "-show_streams", input],
@@ -512,7 +572,6 @@ def ffmpeg_passthrough(
     """
     if _get_ffmpeg_path() is None:
         return "Error: ffmpeg is not installed or not in PATH. Please install ffmpeg: https://ffmpeg.org/download.html"
-    
     try:
         result = subprocess.run(
             ["ffmpeg"] + args,

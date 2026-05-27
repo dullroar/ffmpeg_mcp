@@ -31,6 +31,35 @@ Media files do not need to be uploaded to a remote service merely to convert for
 
 This becomes a Lego brick: convert → probe → extract → compress → thumbnail → publish.
 
+6. **Built-in bulk operations — no loops needed**
+
+All file-input tools accept a glob pattern for the input argument. Supply a directory path (trailing slash) as the output and the tool processes every matched file internally. The LLM makes one tool call instead of N.
+
+---
+
+## Bulk Operations
+
+All tools that accept a file input also accept a **glob pattern** (e.g. `"videos/*.mp4"`). When a glob is given, set the output argument to a **directory path** (e.g. `"encoded/"`) — the tool expands the glob and processes every match in a single call.
+
+```python
+# Convert every MP4 in a folder to MKV — one call, no loop
+convert_video("raw/*.mp4", "encoded/", output_format="mkv")
+
+# Extract audio from every video — one call, no loop
+extract_audio("lectures/*.mp4", "audio/", output_format="mp3")
+
+# Generate thumbnails for every episode — one call, no loop
+generate_thumbnail("episodes/*.mp4", "thumbs/", timestamp="00:00:05")
+
+# Compress a whole folder for web delivery — one call, no loop
+compress_video("originals/*.mp4", "web/", quality_preset="fast", max_bitrate="1500k")
+
+# Probe every file in a folder — one call, no loop
+probe("media/*.mkv")
+```
+
+The output directory is created automatically if it does not exist.
+
 ---
 
 ## Favorite Sample Workflows
@@ -275,10 +304,15 @@ ngrok http 8000
 Once connected to a Claude client, you can ask naturally:
 
 - *"Convert this MP4 to MKV and save it beside the original."*
+- *"Convert all the MP4s in my raw/ folder to MKV and put them in encoded/."*
 - *"Turn this FLAC file into an MP3 at 320kbps bitrate."*
+- *"Convert every FLAC in lossless/ to MP3 at 320kbps and save them in mp3/."*
 - *"Extract the audio track from this movie as an MP3."*
+- *"Extract audio from every video in lectures/ and save the MP3s in audio/."*
 - *"Create a thumbnail from this video at the 30-second mark."*
+- *"Generate thumbnails for every video in episodes/ and save them in thumbs/."*
 - *"Probe this file and tell me what streams it contains."*
+- *"Probe all the MKVs in media/ and summarize the stream info."*
 - *"Compress this video for upload with fast encoding and max 800kb bitrate."*
 - *"Split this video into two outputs using ffmpeg_passthrough."*
 
