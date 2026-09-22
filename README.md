@@ -1,5 +1,7 @@
 # ffmpeg-mcp
 
+For architectural decisions and constraints, see [DESIGN.md](DESIGN.md).
+
 **Author:** Jim Lehmer  
 **License:** MIT
 
