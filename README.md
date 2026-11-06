@@ -1,6 +1,6 @@
 # ffmpeg-mcp
 
-For architectural decisions and constraints, see [DESIGN.md](DESIGN.md).
+For architectural decisions and constraints, see [docs/design/](docs/design/README.md).
 
 **Author:** Jim Lehmer  
 **License:** MIT
