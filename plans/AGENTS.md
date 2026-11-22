@@ -24,5 +24,7 @@ See the [legacy template](./archive/legacy-template/spec.md) for the previous pl
   Read me when: you want to see the format of a plan. (Template only. Copy this folder to start a plan.)
 * [ralphify/plan.md](./ralphify/plan.md)
   Read me when: you are bringing this repository onto the template or reproducing its Docker test.
+* [sharpen-mcp/plan.md](./sharpen-mcp/plan.md)
+  Read me when: you want the bounded ffmpeg_mcp tool catalog, implementation steps, or Docker acceptance gates.
 
 <!-- END GENERATED INDEX -->
