@@ -14,7 +14,9 @@ touches:
 lane: none
 requirements: [R2]
 gate: bash scripts/test_docker.sh && python3 scripts/check_context.py && git diff --check
-evidence: "2026-11-22 UTC. The Docker, context, and whitespace gate passed on Linux amd64. See Verification."
+evidence: gate passed 2026-11-22 (driver-verified)
+claimed_by: codex cli-default
+claimed_at: "2026-11-22T20:32:31Z"
 ---
 
 # 02-build-and-test
