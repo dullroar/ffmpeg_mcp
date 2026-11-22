@@ -1,6 +1,6 @@
 ---
 id: 02-build-and-test
-status: pending
+status: done
 depends_on: [01-adopt-context]
 touches:
   - Dockerfile
@@ -14,7 +14,9 @@ touches:
 lane: none
 requirements: [R2]
 gate: bash scripts/test_docker.sh && python3 scripts/check_context.py && git diff --check
-evidence: ""
+evidence: gate passed 2026-11-22 (driver-verified)
+claimed_by: codex cli-default
+claimed_at: "2026-11-22T20:32:31Z"
 ---
 
 # 02-build-and-test
@@ -28,3 +30,20 @@ Touches `Dockerfile`, `.dockerignore`, `README.md`, `scripts/test_docker.sh`, ge
 ## Repository gate
 
 Install the repo's Python requirements and FFmpeg with `ffprobe`. Add a deterministic stdio test under `tests/`. Use the MCP client to initialize and list tools, then probe or convert a tiny synthetic input and assert a property of the result with `ffprobe`. Use temporary files. Document the stdio container command with stdin open and the test entry point. Preserve existing tool names and arguments.
+
+## Verification
+
+- `bash scripts/test_docker.sh && python3 scripts/check_context.py && git diff --check`
+  passed on Docker Engine 29.10.0 on Linux amd64.
+- The stdio test initialized the session, listed all seven tools, and converted
+  a synthetic WAV file to FLAC. `ffprobe` confirmed FLAC, one channel, 8 kHz,
+  and 800 samples. The container ran as the application user with no network.
+- The index, plan, link, and secret checks passed in the source snapshot and
+  in the linked worktree.
+- The first run installed MCP 2.3.0 and failed to import FastMCP. The Docker
+  build and host install command now specify `mcp<2`. The passing build used
+  MCP 1.30.0.
+
+## Resume notes
+
+None.
