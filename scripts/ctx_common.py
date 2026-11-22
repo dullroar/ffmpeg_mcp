@@ -1,13 +1,19 @@
-"""Shared helpers for the context-governance scripts (standard library only)."""
+"""Shared helpers for the context checks (standard library only).
+
+Run me when: I edit a context script that imports these helpers.
+"""
 from __future__ import annotations
 
 import re
 import subprocess
 from pathlib import Path
 
-BEGIN = "<!-- BEGIN GENERATED CONTEXT INDEX -->"
-END = "<!-- END GENERATED CONTEXT INDEX -->"
+BEGIN = "<!-- BEGIN GENERATED INDEX -->"
+END = "<!-- END GENERATED INDEX -->"
+README_BEGIN = "<!-- BEGIN GENERATED CONTEXT INDEX -->"
+README_END = "<!-- END GENERATED CONTEXT INDEX -->"
 SKIP_DIRS = {".git", ".venv", "node_modules", "build", "dist", "__pycache__", ".hypothesis"}
+INACTIVE_PLANS = {"archive", "for-each-plan"}
 
 
 def repo_root(start: Path | None = None) -> Path:
