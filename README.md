@@ -190,7 +190,7 @@ Execute arbitrary ffmpeg arguments for advanced use cases.
 
 - Python 3.10+
 - [FFmpeg](https://ffmpeg.org/) installed and on your `PATH`
-- Python packages: `mcp[cli]`
+- Python packages: `mcp[cli]` from MCP 1.x
 
 ---
 
@@ -205,7 +205,37 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS/Linux
 
-pip install -r requirements.txt
+pip install -r requirements.txt "mcp<2"
+```
+
+## Docker build and test
+
+Use Docker with Linux containers and Bash. The build needs access to the container,
+Debian, and Python package registries. The test runs without a network or special
+devices. It uses synthetic media in a temporary container directory.
+
+Run these commands from the repository root.
+
+```bash
+docker build -t ffmpeg-mcp .
+bash scripts/test_docker.sh
+```
+
+To start the stdio server, configure your MCP client to run this command. The
+`-i` option keeps stdin open. Mount a media directory and use `/media` paths in
+tool arguments. The container user needs read access to inputs and write access
+to the output directory.
+
+```bash
+docker run --rm -i --network none --mount "type=bind,source=$PWD/media,target=/media" ffmpeg-mcp
+```
+
+To run or inspect the migration plan from the repository root, use
+[Ralph Looper](https://github.com/dullroar/ralph-looper).
+
+```bash
+ralph-looper --repo "$PWD" --plan ralphify --agent codex
+ralph-looper --repo "$PWD" --plan ralphify --status
 ```
 
 ---

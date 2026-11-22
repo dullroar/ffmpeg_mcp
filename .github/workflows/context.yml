@@ -8,5 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Check indexes, plans, links and secrets
         run: python3 scripts/check_context.py
+      - name: Build and test in Docker
+        run: bash scripts/test_docker.sh
