@@ -24,10 +24,21 @@ Run `git merge-base HEAD plan/ralphify` to identify the integrated base commit. 
 
 ## Results
 
-- Base commit: PENDING
-- Commands: PENDING
-- Docker build: PENDING
-- Tests: PENDING
-- Skips: PENDING
-- FUSE: PENDING
-- UTC date: PENDING
+- Base commit: `f2f666d6481ebbb496f3cad9f741c14150622061` from `git merge-base HEAD plan/ralphify`.
+- Commands: PASS. `python3 scripts/check_context.py && bash scripts/test_docker.sh && git diff --check` exited 0.
+- Docker build: PASS. The test script ran `docker build --tag "$image" "$repo_root"` from the integrated worktree. It used `python:3.12-slim-bookworm` and reused cached dependency layers. The script removed the temporary image tag after the run.
+- Tests: PASS. The container ran `python -m unittest discover -s tests -v` and `python scripts/check_context.py /app` as the application user with `--network none`. One test passed. The MCP client initialized, listed all seven tools, and converted a synthetic WAV file with `convert_audio`. `ffprobe` reported FLAC, one channel, 8 kHz, and 800 samples. The index, plan, link, and secret checks passed in the worktree and in the image.
+- Skips: None. The test suite has no opt-in checks.
+- FUSE: n/a.
+- UTC date: 2026-11-22.
+
+## README and agent contract
+
+- PASS. The Docker README build and stdio launch worked with a temporary image tag and an empty temporary directory mounted at `/media`. The server returned an MCP `initialize` response with tool capabilities and exited when stdin closed.
+- PASS. `python server.py --help` listed `--transport` with `stdio` and `sse`, as well as `--host` and `--port`. A Git comparison against the plan seed found no changes to `server.py` or `requirements.txt`.
+- PASS. Both upstream links in `AGENTS.md` resolved through the GitHub API. The structural change rule requires agents to read both projects and account for their layout, plan format, generated indexes, worktree rules, and validation commands.
+- PASS. The README Ralph commands match the local runner's help and option parser. The runner's summary helper reported two done steps and one pending step. Verification used the helper because the full runner commands can create worktrees.
+
+## Resume notes
+
+None.
