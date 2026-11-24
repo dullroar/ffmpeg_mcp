@@ -65,4 +65,5 @@ If you cannot finish, write "Resume notes" below. Keep the status `in_progress`.
 
 ## Resume notes
 
-(none)
+All work is done. The session cannot run Docker, so `bash scripts/test_docker.sh` is not verified here. The driver runs it. The Dockerfile cache step (`RUN python -c ... ensure_environment`) is untested in a build. If the build fails there, check the network and `git` in the image.
+Other gate parts passed: `check_context.py`, `build_indexes.py --check`, `secret_guard.py --tracked`, `git diff --check`.
