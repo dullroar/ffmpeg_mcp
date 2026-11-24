@@ -8,9 +8,9 @@ lane: none
 tier: light
 gate: d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT && git clone -q . "$d/clone" && cd "$d/clone" && python3 scripts/check_context.py && python3 scripts/build_indexes.py --check && python3 scripts/secret_guard.py --tracked && bash scripts/install_hooks.sh --self-test && python3 -m unittest discover -s tests -p 'test_secret_guard.py' && bash scripts/test_docker.sh && cd - >/dev/null && grep -q 'history-findings=[0-9]' plans/adopt-controls/steps/a04-verify.md
 requirements: [R4]
-claimed_by: ""
-claimed_at: ""
-evidence: "2026-11-24 UTC, in worktree. secret_guard.py --history: 0 findings. check_context.py: pass (5 ok). build_indexes.py --check: pass. secret_guard.py --tracked: 0 findings. install_hooks.sh --self-test: ok. python3 -m unittest discover -s tests -v: 22 run, 21 pass, 1 import error (test_stdio, no anyio on host; runs in Docker gate). Clean-clone and Docker checks are left to the gate."
+claimed_by: claude cli-default
+claimed_at: "2026-11-24T14:52:11Z"
+evidence: gate passed 2026-11-24 (driver-verified)
 ---
 
 # Verify the full gates from a clean clone
