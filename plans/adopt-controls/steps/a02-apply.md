@@ -1,6 +1,6 @@
 ---
 id: a02-apply
-status: done
+status: pending
 depends_on: [a01-audit]
 touches:
   - .dockerignore
@@ -20,7 +20,7 @@ gate: python3 scripts/check_context.py && python3 scripts/build_indexes.py --che
 requirements: [R2]
 claimed_by: ""
 claimed_at: ""
-evidence: "2026-11-24: gate run without `bash scripts/test_docker.sh` (no Docker in session). check_context.py, build_indexes.py --check, secret_guard.py --tracked (0 findings), pin, controls.toml, workflow greps and git diff --check all pass. Docker part is for the driver."
+evidence: ""
 ---
 
 # Adopt the pinned library in advisory mode
@@ -65,5 +65,4 @@ If you cannot finish, write "Resume notes" below. Keep the status `in_progress`.
 
 ## Resume notes
 
-All work is done. The session cannot run Docker, so `bash scripts/test_docker.sh` is not verified here. The driver runs it. The Dockerfile cache step (`RUN python -c ... ensure_environment`) is untested in a build. If the build fails there, check the network and `git` in the image.
-Other gate parts passed: `check_context.py`, `build_indexes.py --check`, `secret_guard.py --tracked`, `git diff --check`.
+(none)
