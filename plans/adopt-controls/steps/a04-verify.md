@@ -1,6 +1,6 @@
 ---
 id: a04-verify
-status: pending
+status: done
 depends_on: [a03-probes]
 touches:
   - plans/adopt-controls/steps/a04-verify.md
@@ -10,7 +10,7 @@ gate: d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT && git clone -q . "$d/clone" && 
 requirements: [R4]
 claimed_by: ""
 claimed_at: ""
-evidence: ""
+evidence: "2026-11-24 UTC, in worktree. secret_guard.py --history: 0 findings. check_context.py: pass (5 ok). build_indexes.py --check: pass. secret_guard.py --tracked: 0 findings. install_hooks.sh --self-test: ok. python3 -m unittest discover -s tests -v: 22 run, 21 pass, 1 import error (test_stdio, no anyio on host; runs in Docker gate). Clean-clone and Docker checks are left to the gate."
 ---
 
 # Verify the full gates from a clean clone
@@ -44,4 +44,8 @@ After the operator merges this plan, the operator runs `bash scripts/install_hoo
 
 ## Resume notes
 
-(none)
+history-findings=0
+
+The clean-clone and Docker checks ran in the gate, not in my session. I make no Docker claim.
+
+The host has `ffprobe`, but the host Python has no `anyio` (an MCP dependency). So `tests/test_stdio.py` cannot import on the host. It runs in the Docker gate.
