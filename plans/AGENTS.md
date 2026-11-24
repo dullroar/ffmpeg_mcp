@@ -20,6 +20,8 @@ See the [legacy template](./archive/legacy-template/spec.md) for the previous pl
 
 <!-- BEGIN GENERATED INDEX -->
 
+* [adopt-controls/plan.md](./adopt-controls/plan.md)
+  Read me when: you adopt the pinned deterministic-controls library and the secret guard in ffmpeg_mcp, in advisory mode, with the existing Docker gate kept.
 * [for-each-plan/plan.md](./for-each-plan/plan.md)
   Read me when: you want to see the format of a plan. (Template only. Copy this folder to start a plan.)
 * [ralphify/plan.md](./ralphify/plan.md)

@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg git \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home app
 
@@ -15,4 +15,6 @@ RUN python -m pip install --no-cache-dir -r requirements.txt 'mcp<2'
 COPY . .
 
 USER app
+# Prepare the shim cache for the pinned library. The test run has no network.
+RUN python -c "import sys; sys.path.insert(0, 'scripts'); import check_context as c; spec, commit = c.pinned(); c.ensure_environment(spec, commit)"
 CMD ["python", "server.py"]
