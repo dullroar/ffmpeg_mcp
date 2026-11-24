@@ -1,6 +1,6 @@
 ---
 id: a04-verify
-status: pending
+status: done
 depends_on: [a03-probes]
 touches:
   - plans/adopt-controls/steps/a04-verify.md
@@ -8,9 +8,9 @@ lane: none
 tier: light
 gate: d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT && git clone -q . "$d/clone" && cd "$d/clone" && python3 scripts/check_context.py && python3 scripts/build_indexes.py --check && python3 scripts/secret_guard.py --tracked && bash scripts/install_hooks.sh --self-test && python3 -m unittest discover -s tests -p 'test_secret_guard.py' && bash scripts/test_docker.sh && cd - >/dev/null && grep -q 'history-findings=[0-9]' plans/adopt-controls/steps/a04-verify.md
 requirements: [R4]
-claimed_by: ""
-claimed_at: ""
-evidence: ""
+claimed_by: claude cli-default
+claimed_at: "2026-11-24T14:52:11Z"
+evidence: gate passed 2026-11-24 (driver-verified)
 ---
 
 # Verify the full gates from a clean clone
@@ -44,4 +44,8 @@ After the operator merges this plan, the operator runs `bash scripts/install_hoo
 
 ## Resume notes
 
-(none)
+history-findings=0
+
+The clean-clone and Docker checks ran in the gate, not in my session. I make no Docker claim.
+
+The host has `ffprobe`, but the host Python has no `anyio` (an MCP dependency). So `tests/test_stdio.py` cannot import on the host. It runs in the Docker gate.
