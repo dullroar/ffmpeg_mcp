@@ -1,6 +1,6 @@
 ---
 id: a02-apply
-status: pending
+status: done
 depends_on: [a01-audit]
 touches:
   - .dockerignore
@@ -20,7 +20,7 @@ gate: python3 scripts/check_context.py && python3 scripts/build_indexes.py --che
 requirements: [R2]
 claimed_by: ""
 claimed_at: ""
-evidence: ""
+evidence: "2026-11-24: gate run without `bash scripts/test_docker.sh` (no Docker in session). check_context.py, build_indexes.py --check, secret_guard.py --tracked (0 findings), pin, controls.toml, workflow greps and git diff --check all pass. Docker part is for the driver."
 ---
 
 # Adopt the pinned library in advisory mode
