@@ -1,6 +1,6 @@
 ---
 id: a02-apply
-status: pending
+status: done
 depends_on: [a01-audit]
 touches:
   - .dockerignore
@@ -20,7 +20,7 @@ gate: python3 scripts/check_context.py && python3 scripts/build_indexes.py --che
 requirements: [R2]
 claimed_by: ""
 claimed_at: ""
-evidence: ""
+evidence: "2026-11-24: check_context.py, build_indexes.py --check, secret_guard.py --tracked and git diff --check passed. test_docker.sh not run (no Docker in session); the driver runs it."
 ---
 
 # Adopt the pinned library in advisory mode
@@ -65,4 +65,5 @@ If you cannot finish, write "Resume notes" below. Keep the status `in_progress`.
 
 ## Resume notes
 
-(none)
+All work is done. `.dockerignore` now allows `controls.toml`. The session cannot run Docker, so `bash scripts/test_docker.sh` is not verified here. The driver runs it. The Dockerfile cache step is untested in a build. If the build fails there, check the network and `git` in the image.
+Other gate parts were checked in earlier runs: `build_indexes.py --check`, `secret_guard.py --tracked`, `git diff --check`. This run re-checked `check_context.py` (all ok).

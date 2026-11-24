@@ -26,6 +26,7 @@ This repository runs the pinned `deterministic-controls` library in advisory mod
 
 - **Docker has no network.** The test container runs with `--network none`, so the shim cannot build its cache there. The `Dockerfile` now installs `git` (the pinned install needs it, and the secret guard test needs it). It also builds the shim cache at image build time as user `app`, because the cache is under that user's home. The run commands, `--network none`, the `CMD`, the requirements and the base image did not change.
 - **`apply` wrote a file outside the step scope.** It rewrote `scripts/install_hooks.sh` (a `secretguard.path` fallback). That file is outside `touches`. It was restored to its earlier content. Apply it in a later, separate change if wanted.
+- **`.dockerignore` is an allowlist.** `apply` does not know this. The image did not get `controls.toml`, so the check failed in the container with "manifest not found". The step added `!controls.toml`. The excludes for secrets did not change.
 - **`apply` does not commit.** The step made the commit.
 - **`apply` does not write this document.** It was written by hand.
 - **The shim and the old scripts.** The old `scan_secrets.py` maps to two library checks. The shim groups library checks under the old script names for the output lines.
